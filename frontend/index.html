@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AccMap</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1>AccMap</h1>
+        <div class="route-search">
+          <input type="text" id="start" placeholder="Start location">
+          <input type="text" id="end" placeholder="End location">
+          <button id="search-route">Search Route</button>
+          <button id="clear-route">Clear Route</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="dashboard-summary">
+      <div class="summary-card">
+        <h4>Total Accidents</h4>
+        <div class="value" id="total-accidents">0</div>
+      </div>
+      <div class="summary-card">
+        <h4>Danger Zone</h4>
+        <div class="value" id="fatal-accidents">N/A</div>
+      </div>
+      <div class="summary-card">
+        <h4>Peak Accident Time</h4>
+        <div class="value" id="pedestrian-accidents">N/A</div>
+      </div>
+      <div class="summary-card">
+        <h4>Latest Accident</h4>
+        <div class="value" id="latest-accident">-</div>
+      </div>
+    </div>
+
+    <main>
+      <div class="map-container">
+        <div id="map"></div>
+        <button id="toggle-filters" class="filter-toggle-btn">☰ Filters</button>
+      </div>
+      
+      <div class="dashboard">
+        <div class="chart-container">
+          <canvas id="time-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="severity-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="vehicle-chart"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- Filters Panel -->
+    <div class="filters-panel">
+      <div class="filters-header">
+        <h3>Filter Accidents</h3>
+        <button id="close-filters" class="close-btn">×</button>
+      </div>
+      
+      <div class="filter-group">
+        <label>Time Range:</label>
+        <div class="date-inputs">
+          <input type="date" id="start-date">
+          <span>to</span>
+          <input type="date" id="end-date">
+        </div>
+      </div>
+            
+      <div class="filter-group">
+        <label>Severity:</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="severity" value="fatal" checked> Fatal</label>
+          <label><input type="checkbox" name="severity" value="non-fatal" checked> Non-Fatal</label>
+        </div>
+      </div>
+    
+      <div class="filter-group">
+        <label>Vehicle Type:</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="vehicle" value="pedestrian" checked> Pedestrian</label>
+          <label><input type="checkbox" name="vehicle" value="matatu" checked> Matatu</label>
+          <label><input type="checkbox" name="vehicle" value="motorcycle" checked> Motorcycle</label>
+        </div>
+      </div>
+    
+      <button id="apply-filters">Apply Filters</button>
+    </div>
+    <div class="overlay"></div>
+  </div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="api.js"></script>
+  <script src="components/charts.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

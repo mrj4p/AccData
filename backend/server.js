@@ -1,0 +1,68 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const connectDB = require('./config/db');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+connectDB();
+
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:5502', 
+  'http://localhost:5000'
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error(`CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json());
+
+// Routes
+app.use('/api/accidents', require('./routes/accident'));
+
+// Test endpoints
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    message: "CORS test successful",
+    yourOrigin: req.headers.origin,
+    allowedOrigins: allowedOrigins
+  });
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.message);
+  res.status(err.status || 500).json({ 
+    error: err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`CORS enabled for: ${allowedOrigins.join(', ')}`);
+});
