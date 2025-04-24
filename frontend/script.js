@@ -57,6 +57,7 @@ async function initApp() {
 
     map.once('load', async () => {
       setupMapLayers();
+      setupLayerToggles();
       setupEventListeners();
       setupFilterToggle();
       initCharts();
@@ -84,77 +85,53 @@ function showUserNotification(message, type = 'info') {
   }, 5000);
 }
 
+// Toggle visualization layers
+function setupLayerToggles() {
+  // Heatmap toggle
+  document.getElementById('toggle-heatmap').addEventListener('click', function() {
+    this.classList.toggle('active');
+    const visibility = this.classList.contains('active') ? 'visible' : 'none';
+    map.setLayoutProperty('accidents-heatmap', 'visibility', visibility);
+  });
+
+  // Clusters toggle
+  document.getElementById('toggle-clusters').addEventListener('click', function() {
+    this.classList.toggle('active');
+    const visibility = this.classList.contains('active') ? 'visible' : 'none';
+    map.setLayoutProperty('significant-clusters', 'visibility', visibility);
+    map.setLayoutProperty('cluster-count', 'visibility', visibility);
+    map.setLayoutProperty('medium-clusters', 'visibility', visibility);
+  });
+
+  // Points toggle
+  document.getElementById('toggle-points').addEventListener('click', function() {
+    this.classList.toggle('active');
+    const visibility = this.classList.contains('active') ? 'visible' : 'none';
+    map.setLayoutProperty('accident-points', 'visibility', visibility);
+  });
+
+  // Filters toggle (already handled by setupFilterToggle)
+  document.getElementById('show-filters').addEventListener('click', function() {
+    document.querySelector('.filters-panel').classList.add('visible');
+    document.querySelector('.overlay').classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  });
+}
+
+
 // Set up all map layers and sources
 function setupMapLayers() {
-  // Accident data source
+  // Accident data source with adjusted clustering parameters
   map.addSource('accidents', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
     cluster: true,
-    clusterMaxZoom: 14,
-    clusterRadius: 50
+    clusterMaxZoom: 12,
+    clusterRadius: 60,
+    clusterMinPoints: 5
   });
 
-  // Cluster visualization
-  map.addLayer({
-    id: 'clusters',
-    type: 'circle',
-    source: 'accidents',
-    filter: ['has', 'point_count'],
-    paint: {
-      'circle-color': [
-        'step',
-        ['get', 'point_count'],
-        '#51bbd6', // < 10 accidents
-        10,
-        '#f1f075', // 10-50 accidents
-        50,
-        '#f28cb1'  // > 50 accidents
-      ],
-      'circle-radius': [
-        'step',
-        ['get', 'point_count'],
-        20, // < 10
-        10,
-        30, // 10-50
-        50,
-        40  // > 50
-      ]
-    }
-  });
-
-  // Cluster labels
-  map.addLayer({
-    id: 'cluster-count',
-    type: 'symbol',
-    source: 'accidents',
-    filter: ['has', 'point_count'],
-    layout: {
-      'text-field': '{point_count_abbreviated}',
-      'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-      'text-size': 12
-    }
-  });
-
-  // Individual accident points
-  map.addLayer({
-    id: 'accident-points',
-    type: 'circle',
-    source: 'accidents',
-    filter: ['!', ['has', 'point_count']],
-    paint: {
-      'circle-color': [
-        'match',
-        ['get', 'severity'],
-        'fatal', '#ff0000', // Red for fatal accidents
-        '#00ff00' // Green for non-fatal
-      ],
-      'circle-radius': 8,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': '#fff'
-    }
-  });
-
+  // Heatmap layer
   map.addLayer({
     id: 'accidents-heatmap',
     type: 'heatmap',
@@ -165,15 +142,15 @@ function setupMapLayers() {
         'interpolate',
         ['linear'],
         ['get', 'severity'],
-        0, 0,
+        0, 0.2,
         1, 1
       ],
       'heatmap-intensity': [
         'interpolate',
         ['linear'],
         ['zoom'],
-        0, 1,
-        9, 3
+        0, 0.5,
+        9, 1.5
       ],
       'heatmap-color': [
         'interpolate',
@@ -190,12 +167,94 @@ function setupMapLayers() {
         'interpolate',
         ['linear'],
         ['zoom'],
-        0, 2,
-        9, 20
+        0, 15,
+        9, 25
       ],
-      'heatmap-opacity': 0.6
+      'heatmap-opacity': 0.7
     }
   }, 'waterway-label');
+
+  // Significant clusters (10+ accidents)
+  map.addLayer({
+    id: 'significant-clusters',
+    type: 'circle',
+    source: 'accidents',
+    filter: ['all', ['has', 'point_count'], ['>=', 'point_count', 10]],
+    paint: {
+      'circle-color': [
+        'step',
+        ['get', 'point_count'],
+        '#51bbd6',
+        50, '#f28cb1'
+      ],
+      'circle-radius': [
+        'step',
+        ['get', 'point_count'],
+        25,
+        50, 35
+      ],
+      'circle-opacity': 0.8,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff'
+    }
+  });
+
+  // Cluster labels
+  map.addLayer({
+    id: 'cluster-count',
+    type: 'symbol',
+    source: 'accidents',
+    filter: ['all', ['has', 'point_count'], ['>=', 'point_count', 10]],
+    layout: {
+      'text-field': '{point_count_abbreviated}+',
+      'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+      'text-size': 12
+    }
+  });
+
+  // Medium clusters (5-9 accidents)
+  map.addLayer({
+    id: 'medium-clusters',
+    type: 'circle',
+    source: 'accidents',
+    filter: ['all', 
+      ['has', 'point_count'],
+      ['<', 'point_count', 10],
+      ['>=', 'point_count', 5]
+    ],
+    paint: {
+      'circle-color': '#51bbd6',
+      'circle-radius': 4,
+      'circle-opacity': 0.6
+    }
+  });
+
+  // Individual accident points
+  map.addLayer({
+    id: 'accident-points',
+    type: 'circle',
+    source: 'accidents',
+    filter: ['!', ['has', 'point_count']],
+    minzoom: 12,
+    paint: {
+      'circle-color': [
+        'match',
+        ['get', 'severity'],
+        'fatal', '#ff0000',
+        '#3b82f6'
+      ],
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        12, 4,
+        14, 6
+      ],
+      'circle-stroke-width': 0,
+      'circle-opacity': 1,
+      'circle-blur': 0
+    }
+  });
 
   setupMapInteractions();
 }
@@ -203,8 +262,8 @@ function setupMapLayers() {
 // Set up map event handlers
 function setupMapInteractions() {
   // Cluster click - zoom in
-  map.on('click', 'clusters', (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+  map.on('click', 'significant-clusters', (e) => {
+    const features = map.queryRenderedFeatures(e.point, { layers: ['significant-clusters'] });
     const clusterId = features[0].properties.cluster_id;
     
     map.getSource('accidents').getClusterExpansionZoom(
@@ -213,7 +272,7 @@ function setupMapInteractions() {
         if (err) return;
         map.flyTo({
           center: e.lngLat,
-          zoom: zoom
+          zoom: Math.min(zoom, 14) // Don't zoom too close
         });
       }
     );
@@ -224,7 +283,6 @@ function setupMapInteractions() {
     const feature = e.features[0];
     const coords = feature.geometry.coordinates.slice();
     
-    // Ensure popup appears in view
     while (Math.abs(e.lngLat.lng - coords[0]) > 180) {
       coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
     }
@@ -233,24 +291,20 @@ function setupMapInteractions() {
       .setLngLat(coords)
       .setHTML(`
         <strong>Accident ID:</strong> ${feature.properties.id}<br>
-        <strong>Severity:</strong> ${feature.properties.severity}<br>
         <strong>Date:</strong> ${new Date(feature.properties.date).toLocaleString()}
       `)
       .addTo(map);
   });
 
   // Cursor changes
-  map.on('mouseenter', 'clusters', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  map.on('mouseleave', 'clusters', () => {
-    map.getCanvas().style.cursor = '';
-  });
-  map.on('mouseenter', 'accident-points', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  map.on('mouseleave', 'accident-points', () => {
-    map.getCanvas().style.cursor = '';
+  const interactiveLayers = ['significant-clusters', 'accident-points'];
+  interactiveLayers.forEach(layer => {
+    map.on('mouseenter', layer, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', layer, () => {
+      map.getCanvas().style.cursor = '';
+    });
   });
 }
 
@@ -344,6 +398,54 @@ function updateSummaryDashboard(accidents, isRouteSpecific = false) {
     ? 'Most dangerous segment along the route' 
     : 'Most dangerous area in the dataset';
   document.getElementById('pedestrian-accidents').title = 'Most common time for accidents';
+
+  // Store coordinates for click actions
+  if (dangerZone.coords) {
+    document.getElementById('danger-zone-card').querySelector('.coordinates').textContent = 
+      JSON.stringify(dangerZone.coords);
+  }
+  
+  if (latestAccident.coords) {
+    document.getElementById('latest-accident-card').querySelector('.coordinates').textContent = 
+      JSON.stringify(latestAccident.coords);
+  }
+
+  // Add click handlers
+  document.getElementById('danger-zone-card').addEventListener('click', function() {
+    const coords = JSON.parse(this.querySelector('.coordinates').textContent);
+    if (coords) {
+      map.flyTo({
+        center: coords,
+        zoom: 14,
+        essential: true
+      });
+    }
+  });
+
+  document.getElementById('latest-accident-card').addEventListener('click', function() {
+    const coords = JSON.parse(this.querySelector('.coordinates').textContent);
+    if (coords) {
+      map.flyTo({
+        center: coords,
+        zoom: 14,
+        essential: true
+      });
+      
+      // Optional: Highlight the specific accident
+      const features = map.querySourceFeatures('accidents', {
+        filter: ['==', 'id', latestAccident.id]
+      });
+      
+      if (features.length > 0) {
+        // Show a popup or pulse the marker
+        new mapboxgl.Popup()
+          .setLngLat(coords)
+          .setHTML(`<strong>Latest Accident</strong><br>ID: ${latestAccident.id}`)
+          .addTo(map);
+      }
+    }
+  });
+
 }
 
 // Helper function to find the most dangerous road segment
@@ -389,6 +491,8 @@ function findMostDangerousSegment(accidents, route) {
   return maxSegment !== null 
     ? `Hotspot (${maxCount} accidents)` 
     : 'No dangerous segments';
+
+  
 }
 
 // Helper function to find most common accident time
@@ -426,17 +530,12 @@ function calculateDistance(coord1, coord2) {
 
 // Filter toggle and application
 function setupFilterToggle() {
-  const toggleBtn = document.getElementById('toggle-filters');
   const closeBtn = document.getElementById('close-filters');
   const applyBtn = document.getElementById('apply-filters');
   const filtersPanel = document.querySelector('.filters-panel');
   const overlay = document.querySelector('.overlay');
 
-  toggleBtn.addEventListener('click', () => {
-    filtersPanel.classList.add('visible');
-    overlay.classList.add('visible');
-    document.body.style.overflow = 'hidden';
-  });
+
 
   closeBtn.addEventListener('click', closeFilters);
   overlay.addEventListener('click', closeFilters);
@@ -620,7 +719,16 @@ function clearRoute() {
 // Calculate and display route
 async function calculateRoute(start, end) {
   try {
-    // First get the route from Mapbox
+    // Validate coordinates
+    if (!isValidCoordinate(start) || !isValidCoordinate(end)) {
+      throw new Error('Invalid start or end coordinates');
+    }
+
+    // Show loading state
+    const searchBtn = document.getElementById('search-route');
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
+
     const response = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}` +
       `?geometries=geojson&access_token=${mapboxgl.accessToken}`
@@ -637,33 +745,37 @@ async function calculateRoute(start, end) {
     }
 
     currentRoute = data.routes[0].geometry.coordinates;
-
-    // Draw the route on the map
     updateRouteLayer(currentRoute);
 
-    // Find accidents near the route
+    // Find and update accidents along route
     const routeAccidents = allAccidents.filter(accident => {
       const coords = accident.location?.coordinates || accident.coordinates;
       return isNearRoute(coords);
     });
     
-    if (!routeAccidents.length) {
-      console.log('No accidents found along this route');
-      updateCharts([]);
-    } else {
-      updateCharts(routeAccidents, true);
-    }
-
-    // Fit map to route bounds
+    updateCharts(routeAccidents);
+    updateSummaryDashboard(routeAccidents, true);
     fitMapToRoute(currentRoute);
-
-    // Update accident proximities
     updateAccidentProximities();
 
   } catch (error) {
     console.error('Route calculation error:', error);
     showUserNotification(`Failed to calculate route: ${error.message}`, 'error');
+  } finally {
+    const searchBtn = document.getElementById('search-route');
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.textContent = 'Search Route';
+    }
   }
+}
+
+function isValidCoordinate(coord) {
+  return Array.isArray(coord) && 
+         coord.length === 2 &&
+         !isNaN(coord[0]) && !isNaN(coord[1]) &&
+         Math.abs(coord[0]) <= 180 &&
+         Math.abs(coord[1]) <= 90;
 }
 
 function updateRouteLayer(coordinates) {

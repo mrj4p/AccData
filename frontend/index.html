@@ -18,6 +18,20 @@
           <button id="search-route">Search Route</button>
           <button id="clear-route">Clear Route</button>
         </div>
+        <div class="visualization-toggles">
+          <button id="toggle-heatmap" class="control-btn active" title="Toggle Heatmap">
+            <i class="fas fa-fire"></i>heatmap
+          </button>
+          <button id="toggle-clusters" class="control-btn" title="Toggle Clusters">
+            <i class="fas fa-circle-nodes"></i>clusters
+          </button>
+          <button id="toggle-points" class="control-btn active" title="Toggle Points">
+            <i class="fas fa-map-marker-alt"></i>toggle-points
+          </button>
+          <button id="show-filters" class="control-btn" title="Show Filters">
+            <i class="fas fa-filter"></i>filters
+          </button>
+        </div>
       </div>
     </header>
 
@@ -26,24 +40,25 @@
         <h4>Total Accidents</h4>
         <div class="value" id="total-accidents">0</div>
       </div>
-      <div class="summary-card">
+      <div class="summary-card clickable" id="danger-zone-card">
         <h4>Danger Zone</h4>
         <div class="value" id="fatal-accidents">N/A</div>
+        <div class="coordinates" style="display:none"></div>
       </div>
       <div class="summary-card">
         <h4>Peak Accident Time</h4>
         <div class="value" id="pedestrian-accidents">N/A</div>
       </div>
-      <div class="summary-card">
+      <div class="summary-card clickable" id="latest-accident-card">
         <h4>Latest Accident</h4>
         <div class="value" id="latest-accident">-</div>
+        <div class="coordinates" style="display:none"></div>
       </div>
     </div>
 
     <main>
       <div class="map-container">
         <div id="map"></div>
-        <button id="toggle-filters" class="filter-toggle-btn">☰ Filters</button>
       </div>
       
       <div class="dashboard">
@@ -59,7 +74,7 @@
       </div>
     </main>
 
-    <!-- Filters Panel -->
+
     <div class="filters-panel">
       <div class="filters-header">
         <h3>Filter Accidents</h3>
