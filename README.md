@@ -1,6 +1,7 @@
 # 🚦 Road Accident Mapping & Analysis Platform
 
-![App Screenshot](./docs/screenshot.png)  
+![App Screenshot]![image](https://github.com/user-attachments/assets/f69f15c8-49fc-469c-97ff-9f7dc547e767)
+ 
 *Visualizing accident hotspots and route safety*
 
 ## 🌟 Key Features
@@ -66,7 +67,7 @@ MongoDB 6.0+
 Mapbox API token
 
 Setup
-1. Clone repository: git clone https://github.com/yourusername/accident-mapping.git
+1. Clone repository: git clone https://github.com/dededwin/AccData.git
 
 2. Install dependencies: npm install && cd client && npm install
 
