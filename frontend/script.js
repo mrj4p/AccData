@@ -1,5 +1,6 @@
 import { fetchAllAccidents, fetchRouteAccidents, geocodeAddress } from './api.js';
 import { initCharts, updateCharts } from './components/charts.js';
+import { AIRouteSummary } from './utils/aiRouteSummary.js';
 
 // Initialize Mapbox with saved state
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFwb25kbyIsImEiOiJjbTFseXF0MDkwZ2ZiMnNzYmljN3B4OGFoIn0.oWJxek9ZUakvdA0Cua7Agw';
@@ -8,7 +9,9 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiamFwb25kbyIsImEiOiJjbTFseXF0MDkwZ2ZiMnNzYmljN
 const CONFIG = {
   ROUTE_BUFFER_DISTANCE: 50,
   ROUTE_LAYER_ID: 'route',
-  ACCIDENT_PROXIMITY_THRESHOLD: 50
+  ACCIDENT_PROXIMITY_THRESHOLD: 50,
+  OPENAI_API_KEY: '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', 
+  AI_SUMMARY_MODEL: 'gpt-3.5-turbo',
 };
 
 // Load saved map state or use defaults
@@ -27,6 +30,12 @@ let allAccidents = [];
 let currentRoute = [];
 let startMarker = null;
 let endMarker = null;
+let aiRouteSummary = null;
+let latestAccident = null;
+
+function initAISummary() {
+  aiRouteSummary = new AIRouteSummary(CONFIG);
+}
 
 // Save map state to localStorage
 function saveMapState() {
@@ -51,6 +60,9 @@ async function initApp() {
     return;
   }
   try {
+    initAISummary();
+
+    setupChartSwitching();
     // map event listeners
     map.on('moveend', saveMapState);
     map.on('zoomend', saveMapState);
@@ -72,11 +84,37 @@ async function initApp() {
   }
 }
 
+// Setup chart switching functionality
+function setupChartSwitching() {
+  const chartToggles = document.querySelectorAll('.chart-toggle');
+  
+  chartToggles.forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      // Remove active class from all toggles and containers
+      document.querySelectorAll('.chart-toggle').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('active'));
+      
+      // Add active class to clicked toggle and corresponding container
+      toggle.classList.add('active');
+      const chartId = toggle.getAttribute('data-chart');
+      document.getElementById(`${chartId}-chart-container`).classList.add('active');
+    });
+  });
+}
+
 // Show user notification
 function showUserNotification(message, type = 'info') {
   const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
-  notification.textContent = message;
+  notification.className = `notification ${type}`;
+  
+  const icon = type === 'error' ? 'exclamation-circle' : 
+               type === 'success' ? 'check-circle' : 'info-circle';
+  
+  notification.innerHTML = `
+    <i class="fas fa-${icon}"></i>
+    <span>${message}</span>
+  `;
+  
   document.body.appendChild(notification);
   
   setTimeout(() => {
@@ -110,14 +148,13 @@ function setupLayerToggles() {
     map.setLayoutProperty('accident-points', 'visibility', visibility);
   });
 
-  // Filters toggle (already handled by setupFilterToggle)
+  // Filters toggle
   document.getElementById('show-filters').addEventListener('click', function() {
     document.querySelector('.filters-panel').classList.add('visible');
     document.querySelector('.overlay').classList.add('visible');
     document.body.style.overflow = 'hidden';
   });
 }
-
 
 // Set up all map layers and sources
 function setupMapLayers() {
@@ -219,8 +256,8 @@ function setupMapLayers() {
     source: 'accidents',
     filter: ['all', 
       ['has', 'point_count'],
-      ['<', 'point_count', 10],
-      ['>=', 'point_count', 5]
+      ['<', 'point_count', 100],
+      ['>=', 'point_count', 20]
     ],
     paint: {
       'circle-color': '#51bbd6',
@@ -272,7 +309,7 @@ function setupMapInteractions() {
         if (err) return;
         map.flyTo({
           center: e.lngLat,
-          zoom: Math.min(zoom, 14) // Don't zoom too close
+          zoom: Math.min(zoom, 14)
         });
       }
     );
@@ -376,112 +413,84 @@ async function updateSummaryDashboard(accidents, isRouteSpecific = false) {
 
   const totalAccidents = accidents.length;
   const dangerZone = await findMostDangerousSegment(accidents, currentRoute);
-  const mostCommonTime = findMostCommonTime(accidents);
+  const peakTime = findMostCommonTime(accidents);
   
-  let latestAccident = '-';
-  if (accidents.length > 0) {
-    const dates = accidents.map(a => new Date(a.crash_datetime || a.crash_date)).filter(d => !isNaN(d.getTime()));
-    if (dates.length > 0) {
-      const latestDate = new Date(Math.max(...dates));
-      latestAccident = latestDate.toLocaleDateString();
-    }
+  // Find latest accident with valid date
+  const validAccidents = accidents.filter(a => {
+    const date = new Date(a.crash_datetime || a.crash_date);
+    return !isNaN(date.getTime());
+  });
+  
+  if (validAccidents.length > 0) {
+    validAccidents.sort((a, b) => {
+      return new Date(b.crash_datetime || b.crash_date) - new Date(a.crash_datetime || a.crash_date);
+    });
+    
+    latestAccident = {
+      id: validAccidents[0].crash_id,
+      date: new Date(validAccidents[0].crash_datetime || validAccidents[0].crash_date).toLocaleDateString(),
+      coords: validAccidents[0].location?.coordinates || validAccidents[0].coordinates
+    };
   }
 
   // Update the DOM elements
   document.getElementById('total-accidents').textContent = totalAccidents;
   
   const dangerZoneElement = document.getElementById('fatal-accidents');
-  dangerZoneElement.innerHTML = `
-    <div class="danger-zone-name">${dangerZone.name}</div>
-    <div class="danger-zone-count">${dangerZone.count} accidents</div>
-  `;
+  dangerZoneElement.innerHTML = dangerZone.count > 0 ? 
+    `<div>${dangerZone.count} accidents</div>` : 
+    '<div>No data</div>';
   
-  document.getElementById('pedestrian-accidents').textContent = mostCommonTime || 'N/A';
-  document.getElementById('latest-accident').textContent = latestAccident;
+  document.getElementById('danger-zone-name').textContent = dangerZone.name || 'No dangerous areas';
+  document.getElementById('peak-time').textContent = peakTime || 'N/A';
+  document.getElementById('latest-accident').textContent = latestAccident?.date || '-';
 
   // Store coordinates for click actions
   const dangerZoneCard = document.getElementById('danger-zone-card');
   if (dangerZone.coords) {
-    dangerZoneCard.querySelector('.coordinates').textContent = 
-      JSON.stringify(dangerZone.coords);
+    dangerZoneCard.querySelector('.coordinates').textContent = JSON.stringify(dangerZone.coords);
     dangerZoneCard.style.cursor = 'pointer';
   } else {
+    dangerZoneCard.querySelector('.coordinates').textContent = '';
     dangerZoneCard.style.cursor = 'default';
   }
   
-  if (latestAccident.coords) {
-    document.getElementById('latest-accident-card').querySelector('.coordinates').textContent = 
-      JSON.stringify(latestAccident.coords);
+  const latestAccidentCard = document.getElementById('latest-accident-card');
+  if (latestAccident?.coords) {
+    latestAccidentCard.querySelector('.coordinates').textContent = JSON.stringify(latestAccident.coords);
+    latestAccidentCard.style.cursor = 'pointer';
+  } else {
+    latestAccidentCard.querySelector('.coordinates').textContent = '';
+    latestAccidentCard.style.cursor = 'default';
   }
 
-  // Add click handlers
-  document.getElementById('danger-zone-card').addEventListener('click', function() {
-    const coordsText = this.querySelector('.coordinates').textContent;
-    if (!coordsText) return;
-    
-    const coords = JSON.parse(coordsText);
-    if (coords) {
-      map.flyTo({
-        center: coords,
-        zoom: 14,
-        essential: true
-      });
-      
-      // Highlight the area with a pulse effect
-      const el = document.createElement('div');
-      el.className = 'pulse-marker';
-      new mapboxgl.Marker({
-        element: el,
-        anchor: 'center'
-      })
-      .setLngLat(coords)
-      .addTo(map);
-      
-      setTimeout(() => {
-        document.querySelectorAll('.pulse-marker').forEach(m => m.remove());
-      }, 3000);
+  // Generate AI summary if viewing a route
+  if (isRouteSpecific && aiRouteSummary) {
+    try {
+      console.log("Generating AI summary..."); // Debug log
+      const summary = await aiRouteSummary.generateRouteSummary(accidents, allAccidents, currentRoute);
+      console.log("AI summary result:", summary); // Debug log
+      displayRouteSummary(summary);
+    } catch (error) {
+      console.error('Failed to generate AI summary:', error);
+      displayRouteSummary(`Unable to generate safety summary: ${error.message}`);
     }
-  });
-
-  document.getElementById('latest-accident-card').addEventListener('click', function() {
-    const coords = JSON.parse(this.querySelector('.coordinates').textContent);
-    if (coords) {
-      map.flyTo({
-        center: coords,
-        zoom: 14,
-        essential: true
-      });
-      
-      // Optional: Highlight the specific accident
-      const features = map.querySourceFeatures('accidents', {
-        filter: ['==', 'id', latestAccident.id]
-      });
-      
-      if (features.length > 0) {
-        // Show a popup or pulse the marker
-        new mapboxgl.Popup()
-          .setLngLat(coords)
-          .setHTML(`<strong>Latest Accident</strong><br>ID: ${latestAccident.id}`)
-          .addTo(map);
-      }
-    }
-  });
-
+  }
 }
 
 // Helper function to find the most dangerous road segment
 async function findMostDangerousSegment(accidents, route) {
-  if (!accidents || accidents.length === 0) return { name: 'No data', count: 0 };
+  if (!accidents || accidents.length === 0) return { name: 'No data', count: 0, coords: null };
   
-  // Group accidents by location
+  // Group accidents by location with higher precision (4 decimal places ~11m)
   const locationCounts = {};
   
   accidents.forEach(accident => {
     const coords = accident.location?.coordinates || accident.coordinates;
     if (!coords) return;
     
-    // Round coordinates to 3 decimal places (~100m precision) to group nearby accidents
-    const key = `${coords[0].toFixed(3)},${coords[1].toFixed(3)}`;
+    // Increased precision to 4 decimal places for more specific locations
+    const key = `${coords[0].toFixed(4)},${coords[1].toFixed(4)}`;
     locationCounts[key] = (locationCounts[key] || 0) + 1;
   });
   
@@ -498,25 +507,46 @@ async function findMostDangerousSegment(accidents, route) {
     }
   }
   
-  if (!maxLocation) return { name: 'No dangerous areas', count: 0 };
+  if (!maxLocation) return { name: 'No dangerous areas', count: 0, coords: null };
   
-  // Get location name using reverse geocoding
+  // Enhanced reverse geocoding to get more specific location names
   let locationName = 'High Accident Area';
   try {
     const response = await fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${maxCoords[0]},${maxCoords[1]}.json?` +
-      `types=poi,neighborhood,place&access_token=${mapboxgl.accessToken}`
+      `types=poi,neighborhood,locality,place&access_token=${mapboxgl.accessToken}`
     );
     const data = await response.json();
+    
     if (data.features && data.features.length > 0) {
-      locationName = data.features[0].text || locationName;
-      if (data.features[0].context) {
-        const place = data.features[0].context.find(c => c.id.includes('place'));
-        if (place) locationName += `, ${place.text}`;
+      // Try to get the most specific name first
+      const specificFeatures = data.features.filter(f => 
+        f.place_type.includes('neighborhood') || 
+        f.place_type.includes('poi') ||
+        f.place_type.includes('locality')
+      );
+      
+      if (specificFeatures.length > 0) {
+        // Use neighborhood or POI name if available
+        locationName = specificFeatures[0].text;
+        
+        // Add locality/area if available (e.g., "South C, Nairobi")
+        const locality = data.features.find(f => 
+          f.place_type.includes('locality') || 
+          f.place_type.includes('place')
+        );
+        if (locality && locality.text !== locationName) {
+          locationName += `, ${locality.text}`;
+        }
+      } else {
+        // Fallback to whatever we have
+        locationName = data.features[0].text;
       }
     }
   } catch (error) {
     console.error('Reverse geocoding error:', error);
+    // Fallback to coordinates if geocoding fails
+    locationName = `Area near (${maxCoords[0].toFixed(4)}, ${maxCoords[1].toFixed(4)})`;
   }
   
   return {
@@ -528,7 +558,7 @@ async function findMostDangerousSegment(accidents, route) {
 
 // Helper function to find most common accident time
 function findMostCommonTime(accidents) {
-  if (accidents.length === 0) return 'N/A';
+  if (!accidents || accidents.length === 0) return null;
   
   const timeSlots = Array(8).fill(0);
   const timeLabels = [
@@ -552,21 +582,12 @@ function findMostCommonTime(accidents) {
   return timeLabels[maxIndex];
 }
 
-// Distance calculation
-function calculateDistance(coord1, coord2) {
-  const dx = coord1[0] - coord2[0];
-  const dy = coord1[1] - coord2[1];
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
 // Filter toggle and application
 function setupFilterToggle() {
   const closeBtn = document.getElementById('close-filters');
   const applyBtn = document.getElementById('apply-filters');
   const filtersPanel = document.querySelector('.filters-panel');
   const overlay = document.querySelector('.overlay');
-
-
 
   closeBtn.addEventListener('click', closeFilters);
   overlay.addEventListener('click', closeFilters);
@@ -645,11 +666,11 @@ function updateMapWithAccidents(accidents) {
   if (currentRoute.length > 0) {
     const routeAccidents = filterAccidentsForRoute(accidents, currentRoute);
     updateCharts(routeAccidents);
+    updateSummaryDashboard(routeAccidents, true);
   } else {
     updateCharts(accidents);
+    updateSummaryDashboard(accidents, false);
   }
-  
-  updateSummaryDashboard(accidents);
 }
 
 function filterAccidentsForRoute(accidents, route) {
@@ -705,13 +726,78 @@ function setupEventListeners() {
       const searchBtn = document.getElementById('search-route');
       if (searchBtn) {
         searchBtn.disabled = false;
-        searchBtn.textContent = 'Search Route';
+        searchBtn.innerHTML = '<i class="fas fa-route"></i> Analyze';
       }
     }
   });
 
   // Clear route
   document.getElementById('clear-route').addEventListener('click', clearRoute);
+
+  // Danger zone card click
+  document.getElementById('danger-zone-card').addEventListener('click', function() {
+    const coordsText = this.querySelector('.coordinates').textContent;
+    if (!coordsText) return;
+    
+    try {
+      const coords = JSON.parse(coordsText);
+      if (coords && coords.length === 2) {
+        map.flyTo({
+          center: coords,
+          zoom: 14,
+          essential: true
+        });
+        
+        // Highlight the area with a pulse effect
+        const el = document.createElement('div');
+        el.className = 'pulse-marker';
+        new mapboxgl.Marker({
+          element: el,
+          anchor: 'center'
+        })
+        .setLngLat(coords)
+        .addTo(map);
+        
+        setTimeout(() => {
+          document.querySelectorAll('.pulse-marker').forEach(m => m.remove());
+        }, 3000);
+      }
+    } catch (e) {
+      console.error('Error parsing coordinates:', e);
+    }
+  });
+
+  // Latest accident card click
+  document.getElementById('latest-accident-card').addEventListener('click', function() {
+    const coordsText = this.querySelector('.coordinates').textContent;
+    if (!coordsText) return;
+    
+    try {
+      const coords = JSON.parse(coordsText);
+      if (coords && coords.length === 2) {
+        map.flyTo({
+          center: coords,
+          zoom: 14,
+          essential: true
+        });
+        
+        // Highlight the specific accident
+        const features = map.querySourceFeatures('accidents', {
+          filter: ['==', 'id', latestAccident?.id]
+        });
+        
+        if (features.length > 0) {
+          // Show a popup
+          new mapboxgl.Popup()
+            .setLngLat(coords)
+            .setHTML(`<strong>Latest Accident</strong><br>Date: ${latestAccident?.date}`)
+            .addTo(map);
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing coordinates:', e);
+    }
+  });
 }
 
 // Clear current route and markers
@@ -762,7 +848,7 @@ async function calculateRoute(start, end) {
     searchBtn.disabled = true;
     searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
 
-    // Request a more detailed route with more waypoints
+    // Request route
     const response = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}` +
       `?geometries=geojson&overview=full&steps=true&access_token=${mapboxgl.accessToken}`
@@ -782,12 +868,13 @@ async function calculateRoute(start, end) {
     currentRoute = data.routes[0].geometry.coordinates;
     updateRouteLayer(currentRoute);
 
-    // Find and update accidents along route
+    // Find accidents along route
     const routeAccidents = allAccidents.filter(accident => {
       const coords = accident.location?.coordinates || accident.coordinates;
       return isNearRoute(coords);
     });
     
+    // Update visualizations
     updateCharts(routeAccidents);
     updateSummaryDashboard(routeAccidents, true);
     fitMapToRoute(currentRoute);
@@ -800,8 +887,29 @@ async function calculateRoute(start, end) {
     const searchBtn = document.getElementById('search-route');
     if (searchBtn) {
       searchBtn.disabled = false;
-      searchBtn.textContent = 'Search Route';
+      searchBtn.innerHTML = '<i class="fas fa-route"></i> Analyze';
     }
+  }
+}
+
+// Display AI-generated route summary
+function displayRouteSummary(summary) {
+  const summaryElement = document.getElementById('route-summary');
+  
+  if (!summary || summary === "Unable to generate safety summary at this time.") {
+    summaryElement.innerHTML = `
+      <div class="ai-error">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p>Could not generate safety analysis. Please try again later.</p>
+      </div>
+    `;
+  } else {
+    summaryElement.innerHTML = `
+      <div class="ai-success">
+        <i class="fas fa-robot"></i>
+        <div>${summary}</div>
+      </div>
+    `;
   }
 }
 
@@ -916,4 +1024,5 @@ function isNearRoute(pointCoords) {
   return distance <= CONFIG.ACCIDENT_PROXIMITY_THRESHOLD;
 }
 
+// Initialize the application
 initApp();

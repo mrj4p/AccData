@@ -3,115 +3,179 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AccMap</title>
+  <title>Accident Mapper - Road Safety Visualization</title>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="header-content">
-        <h1>AccMap</h1>
-        <div class="route-search">
-          <input type="text" id="start" placeholder="Start location">
-          <input type="text" id="end" placeholder="End location">
-          <button id="search-route">Search Route</button>
-          <button id="clear-route">Clear Route</button>
+  <div class="app-container">
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="header-brand">
+        <h1><i class="fas fa-car-crash"></i> AccMap</h1>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Left Panel - Map -->
+      <div class="map-panel">
+        <div id="map"></div>
+        
+        <!-- Route Controls (Top Left) -->
+        <div class="route-controls">
+          <div class="search-box">
+            <i class="fas fa-map-marker-alt"></i>
+            <input type="text" id="start" placeholder="Start location">
+          </div>
+          <div class="search-box">
+            <i class="fas fa-flag-checkered"></i>
+            <input type="text" id="end" placeholder="End location">
+          </div>
+          <button id="search-route" class="primary-btn">
+            <i class="fas fa-route"></i> Analyze
+          </button>
+          <button id="clear-route" class="secondary-btn">
+            <i class="fas fa-times"></i> Clear
+          </button>
         </div>
-        <div class="visualization-toggles">
-          <button id="toggle-heatmap" class="control-btn active" title="Toggle Heatmap">
-            <i class="fas fa-fire"></i> Heatmap
-          </button>
-          <button id="toggle-clusters" class="control-btn" title="Toggle Clusters">
-            <i class="fas fa-circle-nodes"></i> Clusters
-          </button>
-          <button id="toggle-points" class="control-btn active" title="Toggle Points">
-            <i class="fas fa-map-marker-alt"></i> Points
-          </button>
-          <button id="show-filters" class="control-btn" title="Show Filters">
+        
+        <!-- Map Controls (Top Right) -->
+        <div class="map-controls">
+          <button id="toggle-heatmap" class="map-control-btn active">Heatmap</button>
+          <button id="toggle-points" class="map-control-btn active">Points</button>
+          <button id="toggle-clusters" class="map-control-btn">Clusters</button>
+          <button id="show-filters" class="map-control-btn">
             <i class="fas fa-filter"></i> Filters
           </button>
         </div>
       </div>
-    </header>
-
-    <div class="dashboard-summary">
-      <div class="summary-card">
-        <h4>Total Accidents</h4>
-        <div class="value" id="total-accidents">0</div>
-      </div>
-      <div class="summary-card clickable" id="danger-zone-card">
-        <h4>Danger Zone</h4>
-        <div class="value" id="fatal-accidents">N/A</div>
-        <div class="coordinates" style="display:none"></div>
-      </div>
-      <div class="summary-card">
-        <h4>Peak Accident Time</h4>
-        <div class="value" id="pedestrian-accidents">N/A</div>
-      </div>
-      <div class="summary-card clickable" id="latest-accident-card">
-        <h4>Latest Accident</h4>
-        <div class="value" id="latest-accident">-</div>
-        <div class="coordinates" style="display:none"></div>
-      </div>
-    </div>
-
-    <main>
-      <div class="map-container">
-        <div id="map"></div>
-      </div>
       
-      <div class="dashboard">
-        <div class="chart-container">
-          <canvas id="time-chart"></canvas>
+      <!-- Right Panel - Dashboard -->
+      <div class="dashboard-panel">
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="card-icon">
+              <i class="fas fa-car-crash"></i>
+            </div>
+            <div class="card-content">
+              <h4>Total Accidents</h4>
+              <div class="card-value" id="total-accidents">0</div>
+            </div>
+          </div>
+          
+          <div class="summary-card clickable" id="danger-zone-card">
+            <div class="card-icon danger">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="card-content">
+              <h4>Danger Zone</h4>
+              <div class="card-value" id="fatal-accidents">N/A</div>
+              <div class="card-subtext" id="danger-zone-name"></div>
+            </div>
+            <div class="coordinates" style="display:none"></div>
+          </div>
+          
+          <div class="summary-card">
+            <div class="card-icon time">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="card-content">
+              <h4>Peak Time</h4>
+              <div class="card-value" id="peak-time">N/A</div>
+            </div>
+          </div>
+          
+          <div class="summary-card clickable" id="latest-accident-card">
+            <div class="card-icon recent">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="card-content">
+              <h4>Latest Accident</h4>
+              <div class="card-value" id="latest-accident">-</div>
+            </div>
+            <div class="coordinates" style="display:none"></div>
+          </div>
         </div>
-        <div class="chart-container">
-          <canvas id="severity-chart"></canvas>
+        
+        <!-- AI Safety Summary -->
+        <div class="safety-summary">
+          <div class="section-header">
+            <h3><i class="fas fa-robot"></i> Route Safety Analysis</h3>
+          </div>
+          <div id="route-summary" class="ai-summary">
+            <p class="placeholder">Calculate a route to view safety insights</p>
+          </div>
         </div>
-        <div class="chart-container">
-          <canvas id="vehicle-chart"></canvas>
+        
+        <!-- Data Visualization -->
+        <div class="data-visualization">
+          <div class="section-header">
+            <h3><i class="fas fa-chart-bar"></i> Accident Patterns</h3>
+            <div class="chart-toggles">
+              <button class="chart-toggle active" data-chart="time">Time</button>
+              <button class="chart-toggle" data-chart="severity">Severity</button>
+              <button class="chart-toggle" data-chart="vehicle">Vehicles</button>
+            </div>
+          </div>
+          
+          <div class="chart-area">
+            <div class="chart-container active" id="time-chart-container">
+              <canvas id="time-chart"></canvas>
+            </div>
+            <div class="chart-container" id="severity-chart-container">
+              <canvas id="severity-chart"></canvas>
+            </div>
+            <div class="chart-container" id="vehicle-chart-container">
+              <canvas id="vehicle-chart"></canvas>
+            </div>
+          </div>
         </div>
       </div>
-      
     </main>
-
-
-    <div class="filters-panel">
-      <div class="filters-header">
-        <h3>Filter Accidents</h3>
-        <button id="close-filters" class="close-btn">×</button>
-      </div>
-      
-      <div class="filter-group">
-        <label>Time Range:</label>
-        <div class="date-inputs">
-          <input type="date" id="start-date">
-          <span>to</span>
-          <input type="date" id="end-date">
-        </div>
-      </div>
-            
-      <div class="filter-group">
-        <label>Severity:</label>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="severity" value="fatal" checked> Fatal</label>
-          <label><input type="checkbox" name="severity" value="non-fatal" checked> Non-Fatal</label>
-        </div>
-      </div>
-    
-      <div class="filter-group">
-        <label>Vehicle Type:</label>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="vehicle" value="pedestrian" checked> Pedestrian</label>
-          <label><input type="checkbox" name="vehicle" value="matatu" checked> Matatu</label>
-          <label><input type="checkbox" name="vehicle" value="motorcycle" checked> Motorcycle</label>
-        </div>
-      </div>
-    
-      <button id="apply-filters">Apply Filters</button>
-    </div>
-    <div class="overlay"></div>
   </div>
+
+  <!-- Filters Panel -->
+  <div class="filters-panel">
+    <div class="filters-header">
+      <h3><i class="fas fa-sliders-h"></i> Filter Accidents</h3>
+      <button id="close-filters" class="close-btn">×</button>
+    </div>
+    
+    <div class="filter-group">
+      <label><i class="fas fa-calendar-alt"></i> Time Range</label>
+      <div class="date-inputs">
+        <input type="date" id="start-date">
+        <span>to</span>
+        <input type="date" id="end-date">
+      </div>
+    </div>
+    
+    <div class="filter-group">
+      <label><i class="fas fa-bolt"></i> Severity</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="severity" value="fatal" checked> <span class="severity-fatal">Fatal</span></label>
+        <label><input type="checkbox" name="severity" value="non-fatal" checked> <span class="severity-nonfatal">Non-Fatal</span></label>
+      </div>
+    </div>
+    
+    <div class="filter-group">
+      <label><i class="fas fa-car-side"></i> Vehicle Type</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="vehicle" value="pedestrian" checked> Pedestrian</label>
+        <label><input type="checkbox" name="vehicle" value="matatu" checked> Matatu</label>
+        <label><input type="checkbox" name="vehicle" value="motorcycle" checked> Motorcycle</label>
+      </div>
+    </div>
+    
+    <button id="apply-filters" class="primary-btn full-width">
+      <i class="fas fa-check"></i> Apply Filters
+    </button>
+  </div>
+  
+  <div class="overlay"></div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
