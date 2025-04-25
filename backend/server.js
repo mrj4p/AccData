@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 connectDB();
 
-// Get local IP address for CORS (optional)
+// Get local IP address for CORS
 const { networkInterfaces } = require('os');
 const nets = networkInterfaces();
 const localIps = Object.values(nets).flat().filter(net => net.family === 'IPv4' && !net.internal).map(net => `http://${net.address}`);
@@ -19,11 +19,8 @@ const allowedOrigins = [
   'http://127.0.0.1:5500',
   'http://127.0.0.1:5502', 
   'http://localhost:5000',
-  // Allow all local network origins (adjust as needed)
-  /http:\/\/192\.168\.\d+\.\d+(:\d+)?$/, // Common home network IP range
-  /http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,  // Common private network range
-  /http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/, // Another private range
-  ...localIps // Add your local machine's IP addresses
+  // Allows all local network origins)
+  /http:\/\/192\.168\.\d+\.\d+(:\d+)?$/
 ];
 
 const corsOptions = {
@@ -83,10 +80,10 @@ app.use((err, req, res, next) => {
 });
 
 // Listen on all network interfaces
-const HOST = '0.0.0.0'; // This makes the server accessible on all network interfaces
+const HOST = '0.0.0.0'; 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);
   console.log(`Also accessible at http://localhost:${PORT}`);
-  console.log(`And likely at http://${localIps[0]}:${PORT} (your local IP)`);
+  console.log(`Also at http://${localIps[0]}:${PORT} (your local IP)`);
   console.log(`CORS enabled for: ${allowedOrigins.join(', ')}`);
 });

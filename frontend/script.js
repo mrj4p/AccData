@@ -6,9 +6,9 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiamFwb25kbyIsImEiOiJjbTFseXF0MDkwZ2ZiMnNzYmljN
 
 // Configuration constants
 const CONFIG = {
-  ROUTE_BUFFER_DISTANCE: 0.01, // in degrees
+  ROUTE_BUFFER_DISTANCE: 50,
   ROUTE_LAYER_ID: 'route',
-  ACCIDENT_PROXIMITY_THRESHOLD: 0.01 // in degrees
+  ACCIDENT_PROXIMITY_THRESHOLD: 50
 };
 
 // Load saved map state or use defaults
@@ -371,11 +371,11 @@ async function loadAndPlotAccidents(accidents) {
 }
 
 // Update summary dashboard
-function updateSummaryDashboard(accidents, isRouteSpecific = false) {
+async function updateSummaryDashboard(accidents, isRouteSpecific = false) {
   if (!accidents || !Array.isArray(accidents)) return;
 
   const totalAccidents = accidents.length;
-  const dangerZone = findMostDangerousSegment(accidents, currentRoute);
+  const dangerZone = await findMostDangerousSegment(accidents, currentRoute);
   const mostCommonTime = findMostCommonTime(accidents);
   
   let latestAccident = '-';
@@ -389,20 +389,24 @@ function updateSummaryDashboard(accidents, isRouteSpecific = false) {
 
   // Update the DOM elements
   document.getElementById('total-accidents').textContent = totalAccidents;
-  document.getElementById('fatal-accidents').textContent = dangerZone || 'N/A';
+  
+  const dangerZoneElement = document.getElementById('fatal-accidents');
+  dangerZoneElement.innerHTML = `
+    <div class="danger-zone-name">${dangerZone.name}</div>
+    <div class="danger-zone-count">${dangerZone.count} accidents</div>
+  `;
+  
   document.getElementById('pedestrian-accidents').textContent = mostCommonTime || 'N/A';
   document.getElementById('latest-accident').textContent = latestAccident;
 
-  // Update tooltips or labels if needed
-  document.getElementById('fatal-accidents').title = isRouteSpecific 
-    ? 'Most dangerous segment along the route' 
-    : 'Most dangerous area in the dataset';
-  document.getElementById('pedestrian-accidents').title = 'Most common time for accidents';
-
   // Store coordinates for click actions
+  const dangerZoneCard = document.getElementById('danger-zone-card');
   if (dangerZone.coords) {
-    document.getElementById('danger-zone-card').querySelector('.coordinates').textContent = 
+    dangerZoneCard.querySelector('.coordinates').textContent = 
       JSON.stringify(dangerZone.coords);
+    dangerZoneCard.style.cursor = 'pointer';
+  } else {
+    dangerZoneCard.style.cursor = 'default';
   }
   
   if (latestAccident.coords) {
@@ -412,13 +416,30 @@ function updateSummaryDashboard(accidents, isRouteSpecific = false) {
 
   // Add click handlers
   document.getElementById('danger-zone-card').addEventListener('click', function() {
-    const coords = JSON.parse(this.querySelector('.coordinates').textContent);
+    const coordsText = this.querySelector('.coordinates').textContent;
+    if (!coordsText) return;
+    
+    const coords = JSON.parse(coordsText);
     if (coords) {
       map.flyTo({
         center: coords,
         zoom: 14,
         essential: true
       });
+      
+      // Highlight the area with a pulse effect
+      const el = document.createElement('div');
+      el.className = 'pulse-marker';
+      new mapboxgl.Marker({
+        element: el,
+        anchor: 'center'
+      })
+      .setLngLat(coords)
+      .addTo(map);
+      
+      setTimeout(() => {
+        document.querySelectorAll('.pulse-marker').forEach(m => m.remove());
+      }, 3000);
     }
   });
 
@@ -449,50 +470,60 @@ function updateSummaryDashboard(accidents, isRouteSpecific = false) {
 }
 
 // Helper function to find the most dangerous road segment
-function findMostDangerousSegment(accidents, route) {
-  if (!route || route.length === 0) return 'N/A';
+async function findMostDangerousSegment(accidents, route) {
+  if (!accidents || accidents.length === 0) return { name: 'No data', count: 0 };
   
-  // Simple implementation - find the route segment with most accidents
-  const segmentAccidents = {};
+  // Group accidents by location
+  const locationCounts = {};
   
-  // Group accidents by nearest route point
   accidents.forEach(accident => {
     const coords = accident.location?.coordinates || accident.coordinates;
     if (!coords) return;
     
-    // Find nearest route point
-    let nearestIndex = 0;
-    let minDistance = Infinity;
-    
-    for (let i = 0; i < route.length; i++) {
-      const dist = calculateDistance(coords, route[i]);
-      if (dist < minDistance) {
-        minDistance = dist;
-        nearestIndex = i;
-      }
-    }
-    
-    // Group by every 5 points to create segments
-    const segment = Math.floor(nearestIndex / 5);
-    segmentAccidents[segment] = (segmentAccidents[segment] || 0) + 1;
+    // Round coordinates to 3 decimal places (~100m precision) to group nearby accidents
+    const key = `${coords[0].toFixed(3)},${coords[1].toFixed(3)}`;
+    locationCounts[key] = (locationCounts[key] || 0) + 1;
   });
   
-  // Find segment with most accidents
-  let maxSegment = null;
+  // Find location with most accidents
+  let maxLocation = null;
   let maxCount = 0;
+  let maxCoords = null;
   
-  for (const [segment, count] of Object.entries(segmentAccidents)) {
+  for (const [key, count] of Object.entries(locationCounts)) {
     if (count > maxCount) {
       maxCount = count;
-      maxSegment = segment;
+      maxLocation = key;
+      maxCoords = key.split(',').map(Number);
     }
   }
   
-  return maxSegment !== null 
-    ? `Hotspot (${maxCount} accidents)` 
-    : 'No dangerous segments';
-
+  if (!maxLocation) return { name: 'No dangerous areas', count: 0 };
   
+  // Get location name using reverse geocoding
+  let locationName = 'High Accident Area';
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${maxCoords[0]},${maxCoords[1]}.json?` +
+      `types=poi,neighborhood,place&access_token=${mapboxgl.accessToken}`
+    );
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      locationName = data.features[0].text || locationName;
+      if (data.features[0].context) {
+        const place = data.features[0].context.find(c => c.id.includes('place'));
+        if (place) locationName += `, ${place.text}`;
+      }
+    }
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+  }
+  
+  return {
+    name: locationName,
+    count: maxCount,
+    coords: maxCoords
+  };
 }
 
 // Helper function to find most common accident time
@@ -695,6 +726,8 @@ function clearRoute() {
   }
   if (map.getLayer(CONFIG.ROUTE_LAYER_ID)) map.removeLayer(CONFIG.ROUTE_LAYER_ID);
   if (map.getSource(CONFIG.ROUTE_LAYER_ID)) map.removeSource(CONFIG.ROUTE_LAYER_ID);
+  if (map.getLayer('route-buffer-layer')) map.removeLayer('route-buffer-layer');
+  if (map.getSource('route-buffer')) map.removeSource('route-buffer');
   
   currentRoute = [];
   
@@ -729,9 +762,10 @@ async function calculateRoute(start, end) {
     searchBtn.disabled = true;
     searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
 
+    // Request a more detailed route with more waypoints
     const response = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}` +
-      `?geometries=geojson&access_token=${mapboxgl.accessToken}`
+      `?geometries=geojson&overview=full&steps=true&access_token=${mapboxgl.accessToken}`
     );
     
     if (!response.ok) {
@@ -744,6 +778,7 @@ async function calculateRoute(start, end) {
       throw new Error('No route found between locations');
     }
 
+    // Get the detailed coordinates
     currentRoute = data.routes[0].geometry.coordinates;
     updateRouteLayer(currentRoute);
 
@@ -779,6 +814,10 @@ function isValidCoordinate(coord) {
 }
 
 function updateRouteLayer(coordinates) {
+  // Create a buffered version of the route
+  const routeLine = turf.lineString(coordinates);
+  const buffered = turf.buffer(routeLine, CONFIG.ROUTE_BUFFER_DISTANCE / 1000, { units: 'kilometers' });
+
   if (map.getSource(CONFIG.ROUTE_LAYER_ID)) {
     map.getSource(CONFIG.ROUTE_LAYER_ID).setData({
       type: 'Feature',
@@ -811,6 +850,22 @@ function updateRouteLayer(coordinates) {
         'line-color': '#3b82f6',
         'line-width': 4,
         'line-opacity': 0.7
+      }
+    });
+
+    // Add buffer layer for visualization
+    map.addSource('route-buffer', {
+      type: 'geojson',
+      data: buffered
+    });
+    
+    map.addLayer({
+      id: 'route-buffer-layer',
+      type: 'fill',
+      source: 'route-buffer',
+      paint: {
+        'fill-color': '#3b82f6',
+        'fill-opacity': 0.1
       }
     });
   }
@@ -851,14 +906,14 @@ function updateAccidentProximities() {
 function isNearRoute(pointCoords) {
   if (!currentRoute.length) return false;
   
-  // Simple proximity check - for better accuracy, consider using Turf.js
-  return currentRoute.some(routePoint => {
-    const dx = Math.abs(routePoint[0] - pointCoords[0]);
-    const dy = Math.abs(routePoint[1] - pointCoords[1]);
-    return dx < CONFIG.ACCIDENT_PROXIMITY_THRESHOLD && 
-           dy < CONFIG.ACCIDENT_PROXIMITY_THRESHOLD;
-  });
+  // Create a line string from the route
+  const routeLine = turf.lineString(currentRoute);
+  const point = turf.point(pointCoords);
+  
+  // Calculate distance from point to line
+  const distance = turf.pointToLineDistance(point, routeLine, { units: 'meters' });
+  
+  return distance <= CONFIG.ACCIDENT_PROXIMITY_THRESHOLD;
 }
 
-// Initialize the app
 initApp();

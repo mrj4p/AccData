@@ -1,5 +1,4 @@
-// components/charts.js
-let timeChart, severityChart, vehicleChart;
+let timeChart, trendChart, vehicleChart;
 
 // Chart configuration constants
 const CHART_CONFIG = {
@@ -12,7 +11,7 @@ const CHART_CONFIG = {
     tooltip: {
       callbacks: {
         label: function(context) {
-          return `${context.label}: ${context.raw} (${Math.round(context.parsed * 100 / context.dataset.data.reduce((a, b) => a + b, 0))}%)`;
+          return `${context.dataset.label}: ${context.raw}`;
         }
       }
     }
@@ -59,22 +58,42 @@ export const initCharts = () => {
       }
     });
 
-    // Severity Chart - Fatal vs Non-Fatal
-    const severityCtx = document.getElementById('severity-chart');
-    if (!severityCtx) throw new Error('Severity chart canvas element not found');
+    // Trend Chart - Accidents Over Time (replaces severity chart)
+    const trendCtx = document.getElementById('severity-chart');
+    if (!trendCtx) throw new Error('Trend chart canvas element not found');
     
-    severityChart = new Chart(severityCtx.getContext('2d'), {
-      type: 'doughnut',
+    trendChart = new Chart(trendCtx.getContext('2d'), {
+      type: 'line',
       data: {
-        labels: ['Fatal Accidents', 'Non-Fatal Accidents'],
+        labels: [],
         datasets: [{
+          label: 'Accidents',
           data: [],
-          backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(75, 192, 192, 0.7)'],
-          borderColor: ['rgba(255, 99, 132, 1)', 'rgba(75, 192, 192, 1)'],
-          borderWidth: 1
+          fill: false,
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 2,
+          tension: 0.1
         }]
       },
-      options: CHART_CONFIG
+      options: {
+        ...CHART_CONFIG,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Number of Accidents'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Time Period'
+            }
+          }
+        }
+      }
     });
 
     // Vehicle Chart - Accident Types
@@ -107,7 +126,6 @@ export const initCharts = () => {
 
   } catch (error) {
     console.error('Chart initialization error:', error);
-    // You might want to display a user-friendly error message here
     const container = document.querySelector('.dashboard');
     if (container) {
       container.innerHTML = `<div class="chart-error">Failed to initialize charts. Please refresh the page.</div>`;
@@ -123,7 +141,6 @@ export const updateCharts = (accidents) => {
 
   if (accidents.length === 0) {
     console.log('No accidents data to display');
-    // Optionally show empty state or reset charts
     resetCharts();
     return;
   }
@@ -146,11 +163,30 @@ export const updateCharts = (accidents) => {
       }
     });
 
-    // Process severity data
-    const fatalCount = accidents.filter(a => 
-      a.contains_fatality_words === true
-    ).length;
-    const nonFatalCount = accidents.length - fatalCount;
+    // Process trend data (by month)
+    const trendData = {};
+    accidents.forEach(accident => {
+      try {
+        const crashDate = accident.crash_datetime || accident.crash_date;
+        if (!crashDate) return;
+        
+        const date = new Date(crashDate);
+        if (isNaN(date.getTime())) return;
+        
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        trendData[monthYear] = (trendData[monthYear] || 0) + 1;
+      } catch (e) {
+        console.warn('Error processing accident date data:', e);
+      }
+    });
+
+    // Sort trend data by date
+    const sortedTrendDates = Object.keys(trendData).sort();
+    const trendLabels = sortedTrendDates.map(date => {
+      const [year, month] = date.split('-');
+      return `${new Date(year, month-1).toLocaleString('default', { month: 'short' })} ${year}`;
+    });
+    const trendValues = sortedTrendDates.map(date => trendData[date]);
 
     // Process vehicle type data
     const pedestrianCount = accidents.filter(a => 
@@ -164,15 +200,16 @@ export const updateCharts = (accidents) => {
     ).length;
     const otherCount = accidents.length - pedestrianCount - matatuCount - motorcycleCount;
 
-    // Update charts only if they exist
+    // Update charts
     if (timeChart) {
       timeChart.data.datasets[0].data = timeData;
       timeChart.update();
     }
 
-    if (severityChart) {
-      severityChart.data.datasets[0].data = [fatalCount, nonFatalCount];
-      severityChart.update();
+    if (trendChart) {
+      trendChart.data.labels = trendLabels;
+      trendChart.data.datasets[0].data = trendValues;
+      trendChart.update();
     }
 
     if (vehicleChart) {
@@ -187,7 +224,6 @@ export const updateCharts = (accidents) => {
 
   } catch (error) {
     console.error('Error updating charts:', error);
-    // Optionally show error to user
   }
 };
 
@@ -199,9 +235,10 @@ const resetCharts = () => {
     timeChart.update();
   }
 
-  if (severityChart) {
-    severityChart.data.datasets[0].data = [0, 0];
-    severityChart.update();
+  if (trendChart) {
+    trendChart.data.labels = [];
+    trendChart.data.datasets[0].data = [];
+    trendChart.update();
   }
 
   if (vehicleChart) {

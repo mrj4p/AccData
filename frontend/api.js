@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:5000/api/accidents';
+// const myIP = await getLocalIP();
+const API_BASE_URL = 'http://192.168.1.9:5000/api/accidents';
 
 async function fetchWithCORS(url, options = {}) {
   try {
