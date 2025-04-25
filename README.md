@@ -30,6 +30,9 @@ Frontend
   "mapbox-gl": "^3.0.0",         // Interactive maps
   "@turf/turf": "^6.5.0",        // Spatial analysis
   "chart.js": "^4.4.0"           // Data visualization
+  rbush
+  rbush-knn 
+  @turf/turf
 }
 Backend
 {
@@ -69,7 +72,7 @@ Mapbox API token
 Setup
 1. Clone repository: git clone https://github.com/dededwin/AccData.git
 
-2. Install dependencies: npm install && cd client && npm install
+2. Install dependencies: npm install && cd client && npm install dependencies above
 
 3. Configure environment:
 echo "MAPBOX_ACCESS_TOKEN=your_token" >> .env
