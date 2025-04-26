@@ -1,6 +1,7 @@
 import { fetchAllAccidents, fetchRouteAccidents, geocodeAddress } from './api.js';
 import { initCharts, updateCharts } from './components/charts.js';
 import { AIRouteSummary } from './utils/aiRouteSummary.js';
+// import kdbush from 'kdbush';
 
 // Initialize Mapbox with saved state
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFwb25kbyIsImEiOiJjbTFseXF0MDkwZ2ZiMnNzYmljN3B4OGFoIn0.oWJxek9ZUakvdA0Cua7Agw';
@@ -10,8 +11,10 @@ const CONFIG = {
   ROUTE_BUFFER_DISTANCE: 50,
   ROUTE_LAYER_ID: 'route',
   ACCIDENT_PROXIMITY_THRESHOLD: 50,
-  OPENAI_API_KEY: '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', 
+  OPENAI_API_KEY: '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', 
   AI_SUMMARY_MODEL: 'gpt-3.5-turbo',
+  ROUTE_PRECALCULATED_POINTS: 100, // Number of points to precalculate along route
+  USE_SPATIAL_INDEX: true, // Whether to use spatial indexing for accidents
 };
 
 // Load saved map state or use defaults
@@ -32,6 +35,9 @@ let startMarker = null;
 let endMarker = null;
 let aiRouteSummary = null;
 let latestAccident = null;
+let routeSpatialIndex = null;
+let precalculatedRoutePoints = [];
+let routeBoundingBox = null;
 
 function initAISummary() {
   aiRouteSummary = new AIRouteSummary(CONFIG);
@@ -354,11 +360,13 @@ async function loadAndPlotAccidents(accidents) {
 
     console.log(`Loaded ${accidents.length} accidents`);
     
-    // Transform to GeoJSON format
+    // Transform to GeoJSON format with validation
     const features = accidents.map(accident => {
       const coords = accident.location?.coordinates || accident.coordinates;
       
-      if (!coords || coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+      // Validate coordinates
+      if (!Array.isArray(coords) || coords.length !== 2 || 
+          isNaN(coords[0]) || isNaN(coords[1])) {
         console.warn('Invalid coordinates for accident:', accident.crash_id, coords);
         return null;
       }
@@ -369,7 +377,7 @@ async function loadAndPlotAccidents(accidents) {
           id: accident.crash_id,
           severity: accident.contains_fatality_words ? 'fatal' : 'non-fatal',
           date: accident.crash_datetime || accident.crash_date,
-          proximity: isNearRoute(coords) ? 1 : 0
+          proximity: currentRoute.length > 0 ? isNearRoute(coords) ? 1 : 0 : 0
         },
         geometry: {
           type: 'Point',
@@ -848,10 +856,10 @@ async function calculateRoute(start, end) {
     searchBtn.disabled = true;
     searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
 
-    // Request route
+    // Request route - add alternatives for better routing
     const response = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}` +
-      `?geometries=geojson&overview=full&steps=true&access_token=${mapboxgl.accessToken}`
+      `?geometries=geojson&overview=full&steps=true&alternatives=true&access_token=${mapboxgl.accessToken}`
     );
     
     if (!response.ok) {
@@ -864,21 +872,20 @@ async function calculateRoute(start, end) {
       throw new Error('No route found between locations');
     }
 
-    // Get the detailed coordinates
+    // Get the best route (could implement scoring based on safety data)
     currentRoute = data.routes[0].geometry.coordinates;
+    
+    // Pre-process the route for faster proximity checks
+    preprocessRoute(currentRoute);
     updateRouteLayer(currentRoute);
 
-    // Find accidents along route
-    const routeAccidents = allAccidents.filter(accident => {
-      const coords = accident.location?.coordinates || accident.coordinates;
-      return isNearRoute(coords);
-    });
+    // Find accidents along route using spatial index
+    const routeAccidents = findAccidentsAlongRoute(allAccidents);
     
     // Update visualizations
     updateCharts(routeAccidents);
     updateSummaryDashboard(routeAccidents, true);
     fitMapToRoute(currentRoute);
-    updateAccidentProximities();
 
   } catch (error) {
     console.error('Route calculation error:', error);
@@ -892,6 +899,49 @@ async function calculateRoute(start, end) {
   }
 }
 
+// Pre-process route for faster proximity checks
+function preprocessRoute(route) {
+  // Create spatial index for the route
+  // routeSpatialIndex = new kdbush(route);
+  
+  // Pre-calculate points along the route at regular intervals
+  const line = turf.lineString(route);
+  const lineLength = turf.length(line, { units: 'kilometers' });
+  const step = lineLength / CONFIG.ROUTE_PRECALCULATED_POINTS;
+  
+  precalculatedRoutePoints = [];
+  for (let i = 0; i <= CONFIG.ROUTE_PRECALCULATED_POINTS; i++) {
+    const distance = i * step;
+    const point = turf.along(line, distance, { units: 'kilometers' });
+    precalculatedRoutePoints.push(point.geometry.coordinates);
+  }
+  
+  // Calculate bounding box for quick filtering
+  routeBoundingBox = turf.bbox(line);
+}
+
+function findAccidentsAlongRoute(accidents) {
+  if (!currentRoute.length) return [];
+  
+  return accidents.filter(accident => {
+    const coords = accident.location?.coordinates || accident.coordinates;
+    if (!coords) return false;
+    
+    // Quick bounding box check first
+    if (!isInBoundingBox(coords, routeBoundingBox)) return false;
+    
+    // Then do precise check
+    return isNearRoute(coords);
+  });
+}
+
+function isInBoundingBox(point, bbox) {
+  return point[0] >= bbox[0] && 
+         point[0] <= bbox[2] && 
+         point[1] >= bbox[1] && 
+         point[1] <= bbox[3];
+}
+
 // Display AI-generated route summary
 function displayRouteSummary(summary) {
   const summaryElement = document.getElementById('route-summary');
@@ -900,13 +950,12 @@ function displayRouteSummary(summary) {
     summaryElement.innerHTML = `
       <div class="ai-error">
         <i class="fas fa-exclamation-triangle"></i>
-        <p>Could not generate safety analysis. Please try again later.</p>
+        <p>Could not generate safety analysis.</p>
       </div>
     `;
   } else {
     summaryElement.innerHTML = `
       <div class="ai-success">
-        <i class="fas fa-robot"></i>
         <div>${summary}</div>
       </div>
     `;
@@ -1012,16 +1061,37 @@ function updateAccidentProximities() {
 }
 
 function isNearRoute(pointCoords) {
-  if (!currentRoute.length) return false;
+  // Validate inputs
+  if (!Array.isArray(pointCoords)) return false;
+  if (pointCoords.length !== 2) return false;
+  if (isNaN(pointCoords[0]) || isNaN(pointCoords[1])) return false;
   
-  // Create a line string from the route
-  const routeLine = turf.lineString(currentRoute);
-  const point = turf.point(pointCoords);
+  // Return false if no route exists
+  if (!currentRoute || currentRoute.length < 2) return false;
+
+  // First check against precalculated points
+  for (const routePoint of precalculatedRoutePoints) {
+    try {
+      const distance = turf.distance(turf.point(pointCoords), turf.point(routePoint), { units: 'meters' });
+      if (distance <= CONFIG.ACCIDENT_PROXIMITY_THRESHOLD) {
+        return true;
+      }
+    } catch (e) {
+      console.warn('Distance calculation error:', e);
+      return false;
+    }
+  }
   
-  // Calculate distance from point to line
-  const distance = turf.pointToLineDistance(point, routeLine, { units: 'meters' });
-  
-  return distance <= CONFIG.ACCIDENT_PROXIMITY_THRESHOLD;
+  // If not near precalculated points, check against full route
+  try {
+    const routeLine = turf.lineString(currentRoute);
+    const point = turf.point(pointCoords);
+    const distance = turf.pointToLineDistance(point, routeLine, { units: 'meters' });
+    return distance <= CONFIG.ACCIDENT_PROXIMITY_THRESHOLD;
+  } catch (e) {
+    console.error('Route proximity check failed:', e);
+    return false;
+  }
 }
 
 // Initialize the application

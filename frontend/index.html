@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Accident Mapper - Road Safety Visualization</title>
+  <title>AccMap</title>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
@@ -19,46 +19,45 @@
 
     <!-- Main Content Area -->
     <main class="app-main">
-      <!-- Left Panel - Map -->
-      <div class="map-panel">
-        <div id="map"></div>
-        
-        <!-- Route Controls (Top Left) -->
-        <div class="route-controls">
-          <div class="search-box">
-            <i class="fas fa-map-marker-alt"></i>
-            <input type="text" id="start" placeholder="Start location">
+      <!-- Left Panel - Map and Summary Cards -->
+      <div class="map-summary-container">
+        <!-- Map Section -->
+        <div class="map-panel">
+          <div id="map"></div>
+          
+          <!-- Route Controls (Top Left) -->
+          <div class="route-controls">
+            <div class="search-box">
+              <i class="fas fa-map-marker-alt"></i>
+              <input type="text" id="start" placeholder="Start location">
+            </div>
+            <div class="search-box">
+              <i class="fas fa-flag-checkered"></i>
+              <input type="text" id="end" placeholder="End location">
+            </div>
+            <button id="search-route" class="primary-btn">
+              <i class="fas fa-route"></i> Analyze
+            </button>
+            <button id="clear-route" class="secondary-btn">
+              <i class="fas fa-times"></i> Clear
+            </button>
           </div>
-          <div class="search-box">
-            <i class="fas fa-flag-checkered"></i>
-            <input type="text" id="end" placeholder="End location">
+          
+          <!-- Map Controls (Top Right) -->
+          <div class="map-controls">
+            <button id="toggle-heatmap" class="map-control-btn active">Heatmap</button>
+            <button id="toggle-points" class="map-control-btn active">Points</button>
+            <button id="toggle-clusters" class="map-control-btn">Clusters</button>
+            <button id="show-filters" class="map-control-btn">
+              <i class="fas fa-filter"></i> Filters
+            </button>
           </div>
-          <button id="search-route" class="primary-btn">
-            <i class="fas fa-route"></i> Analyze
-          </button>
-          <button id="clear-route" class="secondary-btn">
-            <i class="fas fa-times"></i> Clear
-          </button>
         </div>
         
-        <!-- Map Controls (Top Right) -->
-        <div class="map-controls">
-          <button id="toggle-heatmap" class="map-control-btn active">Heatmap</button>
-          <button id="toggle-points" class="map-control-btn active">Points</button>
-          <button id="toggle-clusters" class="map-control-btn">Clusters</button>
-          <button id="show-filters" class="map-control-btn">
-            <i class="fas fa-filter"></i> Filters
-          </button>
-        </div>
-      </div>
-      
-      <!-- Right Panel - Dashboard -->
-      <div class="dashboard-panel">
-        <!-- Summary Cards -->
-        <div class="summary-cards">
+        <!-- Summary Cards Section (Beside Map) -->
+        <div class="map-side-summary">
           <div class="summary-card">
             <div class="card-icon">
-              <i class="fas fa-car-crash"></i>
             </div>
             <div class="card-content">
               <h4>Total Accidents</h4>
@@ -68,7 +67,6 @@
           
           <div class="summary-card clickable" id="danger-zone-card">
             <div class="card-icon danger">
-              <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div class="card-content">
               <h4>Danger Zone</h4>
@@ -80,17 +78,15 @@
           
           <div class="summary-card">
             <div class="card-icon time">
-              <i class="fas fa-clock"></i>
             </div>
             <div class="card-content">
               <h4>Peak Time</h4>
               <div class="card-value" id="peak-time">N/A</div>
             </div>
           </div>
-          
+
           <div class="summary-card clickable" id="latest-accident-card">
             <div class="card-icon recent">
-              <i class="fas fa-calendar-alt"></i>
             </div>
             <div class="card-content">
               <h4>Latest Accident</h4>
@@ -99,21 +95,14 @@
             <div class="coordinates" style="display:none"></div>
           </div>
         </div>
-        
-        <!-- AI Safety Summary -->
-        <div class="safety-summary">
-          <div class="section-header">
-            <h3><i class="fas fa-robot"></i> Route Safety Analysis</h3>
-          </div>
-          <div id="route-summary" class="ai-summary">
-            <p class="placeholder">Calculate a route to view safety insights</p>
-          </div>
-        </div>
-        
+      </div>
+      
+      <!-- Right Panel - Dashboard -->
+      <div class="dashboard-panel">
         <!-- Data Visualization -->
         <div class="data-visualization">
           <div class="section-header">
-            <h3><i class="fas fa-chart-bar"></i> Accident Patterns</h3>
+            <h3><i class="fas fa-chart-bar"></i> Patterns</h3>
             <div class="chart-toggles">
               <button class="chart-toggle active" data-chart="time">Time</button>
               <button class="chart-toggle" data-chart="severity">Severity</button>
@@ -133,6 +122,17 @@
             </div>
           </div>
         </div>
+        
+        <!-- AI Safety Summary -->
+        <div class="safety-summary">
+          <div class="section-header">
+            <h3><i class="fas fa-robot"></i> AI Route Safety Analysis</h3>
+          </div>
+          <div id="route-summary" class="ai-summary">
+            <p class="placeholder">Calculate a route to view safety insights</p>
+          </div>
+        </div>
+        
       </div>
     </main>
   </div>
