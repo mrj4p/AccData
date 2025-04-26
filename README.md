@@ -1,7 +1,7 @@
 # 🚦 Road Accident Mapping & Analysis Platform
 
-![App Screenshot]![image](https://github.com/user-attachments/assets/f69f15c8-49fc-469c-97ff-9f7dc547e767)
- 
+![image](https://github.com/user-attachments/assets/48ae8037-0061-4df6-9b58-911ba2a41a88)
+
 *Visualizing accident hotspots and route safety*
 
 ## 🌟 Key Features
@@ -23,46 +23,6 @@
 "
 "
 
-Technology Stack
-Frontend
-//  Dependencies
-{
-  "mapbox-gl": "^3.0.0",         // Interactive maps
-  "@turf/turf": "^6.5.0",        // Spatial analysis
-  "chart.js": "^4.4.0"           // Data visualization
-  rbush
-  rbush-knn 
-  @turf/turf
-}
-Backend
-{
-    mongoose
-    
-}
-
-
-Backend
-
-Site Structure
-MainSite
-├──Frontend
-|   ├──Components
-|   |   └──charts.js
-|   ├──api.js
-|   ├──script.js
-|   ├──index.html
-|   └──styles.css
-├──Backend
-|   ├──config
-|   |    └──db.js
-|   ├──models
-|   |    └──Accident.js
-|   ├──routes
-|   |    └──accident.js
-|   └──server.js
-├──.env
-└──README.md
-
 Installation Guide
 Prerequisites
 Node.js 18+
@@ -72,13 +32,14 @@ Mapbox API token
 Setup
 1. Clone repository: git clone https://github.com/dededwin/AccData.git
 
-2. Install dependencies: npm install && cd client && npm install dependencies above
+2. Install dependencies: npm install && cd backend && npm start && node server.js
 
 3. Configure environment:
 echo "MAPBOX_ACCESS_TOKEN=your_token" >> .env
 echo "MONGODB_URI=mongodb://localhost:27017/accidents" >> .env
 
-4. Import sample data: npm run import-data
+
+5. Import sample data: npm run import-data
 
 User Documentation
 Basic Controls
