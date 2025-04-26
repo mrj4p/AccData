@@ -1,7 +1,7 @@
 # 🚦 Road Accident Mapping & Analysis Platform
 
-![App Screenshot]![image](https://github.com/user-attachments/assets/f69f15c8-49fc-469c-97ff-9f7dc547e767)
- 
+![image](https://github.com/user-attachments/assets/48ae8037-0061-4df6-9b58-911ba2a41a88)
+
 *Visualizing accident hotspots and route safety*
 
 ## 🌟 Key Features
