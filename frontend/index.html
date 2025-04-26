@@ -54,11 +54,10 @@
           </div>
         </div>
         
-        <!-- Summary Cards Section (Beside Map) -->
+        <!-- Summary Cards Section (Beside Map on desktop, below on mobile) -->
         <div class="map-side-summary">
           <div class="summary-card">
-            <div class="card-icon">
-            </div>
+            <div class="card-icon"></div>
             <div class="card-content">
               <h4>Total Accidents</h4>
               <div class="card-value" id="total-accidents">0</div>
@@ -66,8 +65,7 @@
           </div>
           
           <div class="summary-card clickable" id="danger-zone-card">
-            <div class="card-icon danger">
-            </div>
+            <div class="card-icon danger"></div>
             <div class="card-content">
               <h4>Danger Zone</h4>
               <div class="card-value" id="fatal-accidents">N/A</div>
@@ -77,8 +75,7 @@
           </div>
           
           <div class="summary-card">
-            <div class="card-icon time">
-            </div>
+            <div class="card-icon time"></div>
             <div class="card-content">
               <h4>Peak Time</h4>
               <div class="card-value" id="peak-time">N/A</div>
@@ -86,8 +83,7 @@
           </div>
 
           <div class="summary-card clickable" id="latest-accident-card">
-            <div class="card-icon recent">
-            </div>
+            <div class="card-icon recent"></div>
             <div class="card-content">
               <h4>Latest Accident</h4>
               <div class="card-value" id="latest-accident">-</div>
@@ -132,7 +128,6 @@
             <p class="placeholder">Calculate a route to view safety insights</p>
           </div>
         </div>
-        
       </div>
     </main>
   </div>
@@ -176,6 +171,29 @@
   </div>
   
   <div class="overlay"></div>
+
+  <div class="mobile-only">
+    <div class="mobile-search-container">
+      <div class="mobile-search-row">
+        <div class="search-box">
+          <i class="fas fa-map-marker-alt"></i>
+          <input type="text" id="mobile-start" placeholder="Start">
+        </div>
+        <div class="search-box">
+          <i class="fas fa-flag-checkered"></i>
+          <input type="text" id="mobile-end" placeholder="End">
+        </div>
+      </div>
+      <div class="mobile-button-row">
+        <button id="mobile-search-route" class="primary-btn">
+          <i class="fas fa-route"></i> Analyze
+        </button>
+        <button id="mobile-clear-route" class="secondary-btn">
+          <i class="fas fa-times"></i> Clear
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

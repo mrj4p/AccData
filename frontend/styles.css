@@ -646,59 +646,6 @@ button {
   }
 }
 
-@media (max-width: 600px) {
-  .map-side-summary .summary-card {
-    min-width: 100%;
-  }
-  
-  .route-controls {
-    max-width: 280px;
-  }
-  
-  .map-controls {
-    flex-wrap: wrap;
-    max-width: 200px;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .chart-toggles {
-    width: 100%;
-  }
-  
-  .chart-toggle {
-    flex: 1;
-    text-align: center;
-  }
-  .summary-card {
-    min-width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .route-controls,
-  .map-controls {
-    position: static;
-    max-width: 100%;
-    margin: 0.5rem;
-  }
-  
-  .app-main {
-    flex-direction: column-reverse;
-  }
-  
-  .map-summary-container {
-    min-width: 100%;
-  }
-  
-  .dashboard-panel > .summary-card {
-    margin: 0.75rem;
-  }
-}
 
 #danger-zone-card .card-value {
   font-size: 1.1rem;
@@ -709,4 +656,211 @@ button {
   font-size: 0.9rem;
   color: var(--danger-color);
   margin-top: 0.25rem;
+}
+
+/* Tablet and below (1024px and below) */
+@media (max-width: 1024px) {
+  .map-summary-container {
+    min-width: 50%;
+  }
+  
+  .dashboard-panel {
+    min-width: 350px;
+  }
+  
+  .map-side-summary {
+    width: 180px;
+    padding: 0.75rem;
+  }
+  
+  .summary-card {
+    min-height: 110px;
+    padding: 0.75rem;
+  }
+  
+  .card-content h4 {
+    font-size: 0.8rem;
+  }
+  
+  .card-value {
+    font-size: 1.1rem;
+  }
+}
+
+/* Mobile-specific styles (under 768px) */
+@media (max-width: 768px) {
+  /* Hide desktop elements */
+  .route-controls,
+  .map-controls,
+  .map-side-summary {
+    display: none;
+  }
+  
+  /* Mobile container */
+  .mobile-only {
+    display: block;
+  }
+  
+  /* Main layout */
+  .app-main {
+    flex-direction: column;
+    height: auto;
+    overflow-y: auto;
+    padding: 0;
+  }
+  
+  /* Search container - positioned inside map */
+  .mobile-search-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Search inputs row */
+  .mobile-search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  /* Individual search boxes */
+  .search-box {
+    flex: 1;
+    position: relative;
+  }
+
+  .search-box i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-color);
+  }
+
+  /* Input fields */
+  .mobile-search-container input {
+    width: 100%;
+    padding: 10px 10px 10px 35px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Button row - Clear beside Analyze */
+  .mobile-button-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  #mobile-search-route,
+  #mobile-clear-route {
+    flex: 1; /* Both buttons take equal space */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Map container */
+  .map-summary-container {
+    flex: none;
+    height: 60vh;
+    min-height: 300px;
+    position: relative;
+    background: #e5e7eb;
+  }
+  
+  #map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  
+  /* Summary cards grid */
+  .mobile-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px;
+    background: var(--darker-bg);
+  }
+  
+  .mobile-summary-grid .summary-card {
+    margin: 0;
+    min-height: 120px;
+    padding: 12px;
+  }
+  
+  /* Dashboard panel */
+  .dashboard-panel {
+    flex: none;
+    max-width: 100%;
+    border-top: 1px solid var(--border-color);
+    overflow-y: auto;
+  }
+  
+  /* Full page scrolling */
+  .app-container {
+    overflow-y: auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Chart adjustments */
+  .chart-container {
+    height: 200px;
+  }
+}
+
+/* Desktop - hide mobile elements */
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none;
+  }
+  
+  /* Restore original desktop styles */
+  .route-controls,
+  .map-controls,
+  .map-side-summary {
+    display: flex;
+  }
+  
+  .app-main {
+    flex-direction: row !important;
+  }
+  
+  .map-summary-container {
+    height: auto !important;
+  }
+}
+
+/* Desktop - hide mobile elements */
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none;
+  }
+  
+  /* Restore original desktop styles */
+  .route-controls,
+  .map-controls,
+  .map-side-summary {
+    display: flex;
+  }
+  
+  .app-main {
+    flex-direction: row !important;
+  }
+  
+  .map-summary-container {
+    height: auto !important;
+  }
 }

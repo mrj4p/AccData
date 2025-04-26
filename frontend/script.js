@@ -1096,3 +1096,35 @@ function isNearRoute(pointCoords) {
 
 // Initialize the application
 initApp();
+
+// Mobile functionality
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.innerWidth <= 768) {
+    // Connect mobile search to original functionality
+    document.getElementById('mobile-start').addEventListener('input', function() {
+      document.getElementById('start').value = this.value;
+    });
+    
+    document.getElementById('mobile-end').addEventListener('input', function() {
+      document.getElementById('end').value = this.value;
+    });
+    
+    document.getElementById('mobile-search-route').addEventListener('click', function() {
+      document.getElementById('search-route').click();
+    });
+    
+    document.getElementById('mobile-clear-route').addEventListener('click', function() {
+      document.getElementById('clear-route').click();
+    });
+    
+    // Clone summary cards to mobile grid
+    const mobileGrid = document.createElement('div');
+    mobileGrid.className = 'mobile-summary-grid';
+    const cards = document.querySelectorAll('.map-side-summary .summary-card');
+    cards.forEach(card => {
+      mobileGrid.appendChild(card.cloneNode(true));
+    });
+    
+    document.querySelector('.map-summary-container').after(mobileGrid);
+  }
+});
