@@ -81,8 +81,8 @@ app.use((err, req, res, next) => {
 // Listen on all network interfaces
 const HOST = '0.0.0.0'; 
 app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
-  console.log(`Also accessible at http://localhost:${PORT}`);
-  console.log(`Also at http://${localIps[0]}:${PORT} (your local IP)`);
-  console.log(`CORS enabled for: ${allowedOrigins.join(', ')}`);
+  // console.log(`Server running on http://${HOST}:${PORT}`);
+  // console.log(`Also accessible at http://localhost:${PORT}`);
+  // console.log(`Also at http://${localIps[0]}:${PORT} (your local IP)`);
+  // console.log(`CORS enabled for: ${allowedOrigins.join(', ')}`);
 });
