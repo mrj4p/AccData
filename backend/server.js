@@ -59,7 +59,6 @@ app.get("/", (req, res) => {
 // app.get('/', (req, res) => {
 //   res.send('API is running...');
 // });
->>>>>>> c9695f4e108f30756ff7a1bffee9dde7bf1d2292
 
 // Routes
 app.use('/api/accidents', require('./routes/accident'));
