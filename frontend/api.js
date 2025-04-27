@@ -14,6 +14,7 @@ async function fetchWithCORS(url, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {
+        Authorization: process.env.API_SECRET,
         'Content-Type': 'application/json',
         ...options.headers
       },
