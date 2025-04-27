@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node Backend/server.js",
-    "server": "nodemon Backend/server.js",
-    "client": "cd Frontend && live-server",
+    "start": "node backend/server.js",
+    "server": "nodemon backend/server.js",
+    "client": "cd frontend && live-server",
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "keywords": [],
