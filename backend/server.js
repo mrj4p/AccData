@@ -59,13 +59,13 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend", "index.html"));
 });
 
-app.use('/api', (req, res, next) => {
-  const auth = req.headers.authorization;
-  if (auth !== process.env.API_SECRET) {  
-    return res.status(401).send('Unauthorized');
-  }
-  next(); 
-});
+// app.use('/api', (req, res, next) => {
+//   const auth = req.headers.authorization;
+//   if (auth !== process.env.API_SECRET) {  
+//     return res.status(401).send('Unauthorized');
+//   }
+//   next(); 
+// });
 
 // Routes
 app.use('/api/accidents', require('./routes/accident'));
