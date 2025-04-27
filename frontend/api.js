@@ -33,8 +33,7 @@ export const fetchAllAccidents = async () => {
     return await fetchWithCORS(API_BASE_URL);
   } catch (error) {
     console.error('Failed to fetch accidents:', {
-      error: error.message,
-      suggestion: '1. Check server is running 2. Verify CORS config 3. Try different browser'
+      error: error.message
     });
     throw error;
   }
