@@ -53,9 +53,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+<<<<<<< HEAD
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
+=======
+// app.get('/', (req, res) => {
+//   res.send('API is running...');
+// });
+>>>>>>> c9695f4e108f30756ff7a1bffee9dde7bf1d2292
 
 // Routes
 app.use('/api/accidents', require('./routes/accident'));

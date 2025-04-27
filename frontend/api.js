@@ -1,5 +1,13 @@
 // const myIP = await getLocalIP();
-const API_BASE_URL = 'http://192.168.1.9:5000/api/accidents';
+let API_BASE_URL = '';
+
+if (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.0.0.1')) {
+  // Running locally
+  API_BASE_URL = 'http://192.168.1.9:5000/api/accidents';
+} else {
+  // Running on live server (Render.com)
+  API_BASE_URL = 'https://accmap.onrender.com/api/accidents';
+}
 
 async function fetchWithCORS(url, options = {}) {
   try {
